@@ -9,6 +9,12 @@ const app = express();
 app.use(bodyParser.json());
 
 app.post("/webhook", async (req, res) => {
+  // GitHub ping test
+  if (req.headers["x-github-event"] === "ping") {
+    console.log("🔔 Recebido evento de ping do GitHub");
+    return res.status(200).send("✅ Pong do webhook");
+  }
+
   const commits = req.body.commits || [];
   const repo = req.body.repository.full_name;
 
