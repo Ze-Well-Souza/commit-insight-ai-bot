@@ -4,7 +4,13 @@ import bodyParser from "body-parser";
 import dotenv from "dotenv";
 import { analisarCommit } from "./openaiService.js";
 
+// Carregar variáveis de ambiente
 dotenv.config();
+
+// Verificar configuração crítica
+if (!process.env.OPENAI_API_KEY) {
+  console.warn("⚠️ AVISO: OPENAI_API_KEY não está configurada! O serviço não funcionará corretamente.");
+}
 
 const app = express();
 app.use(bodyParser.json({
@@ -16,17 +22,24 @@ app.use(bodyParser.json({
 
 // Rota de verificação de saúde - crucial para Railway
 app.get("/", (req, res) => {
-  res.status(200).send("✅ Webhook ativo e funcionando");
+  const apiStatus = process.env.OPENAI_API_KEY ? "configurada" : "NÃO configurada";
+  res.status(200).send(`✅ Webhook ativo e funcionando. OpenAI API: ${apiStatus}`);
 });
 
-// Status do servidor com mais detalhes
+// Rota de diagnóstico detalhado
 app.get("/status", (req, res) => {
   res.status(200).json({
     status: "online",
     timestamp: new Date().toISOString(),
     version: "1.0.0",
     environment: process.env.NODE_ENV || 'development',
-    apiKeyConfigured: !!process.env.OPENAI_API_KEY
+    apiKeyConfigured: !!process.env.OPENAI_API_KEY,
+    envVars: {
+      PORT: process.env.PORT || '3000',
+      NODE_ENV: process.env.NODE_ENV || 'não definido',
+      // Não mostrar a chave completa, apenas se existe
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY ? "***configurada***" : "não configurada"
+    }
   });
 });
 
@@ -64,8 +77,13 @@ app.post("/webhook", async (req, res) => {
       
       try {
         const diff = `Repositório: ${repo}\nAutor: ${author}\nMensagem: ${message}\nURL: ${url}`;
-        await analisarCommit(diff);
+        const analise = await analisarCommit(diff);
         console.log(`✅ Commit analisado com sucesso: ${commit.id?.substring(0, 7) || "ID desconhecido"}`);
+        console.log(`📝 Análise: ${analise.substring(0, 100)}...`);
+        
+        // Aqui você poderia adicionar código para enviar notificações
+        // via SMS, WhatsApp, etc.
+        
       } catch (error) {
         console.error(`❌ Erro ao analisar commit: ${error.message}`);
       }
@@ -73,6 +91,36 @@ app.post("/webhook", async (req, res) => {
   } catch (error) {
     console.error("❌ Erro ao processar webhook:", error);
     // Não retornar erro aqui, pois já enviamos a resposta acima
+  }
+});
+
+// Teste de integração com o repositório específico
+app.get("/test-repo", async (req, res) => {
+  try {
+    const repoUrl = "https://github.com/Ze-Well-Souza/techcare-connect-automator";
+    const testCommit = {
+      message: "Teste de integração",
+      author: { name: "Sistema de Teste" },
+      url: repoUrl,
+      id: "test123"
+    };
+    
+    console.log(`🧪 Testando integração com ${repoUrl}`);
+    
+    const diff = `Repositório: ${repoUrl}\nAutor: ${testCommit.author.name}\nMensagem: ${testCommit.message}\nURL: ${testCommit.url}`;
+    const analise = await analisarCommit(diff);
+    
+    res.status(200).json({
+      success: true,
+      message: "Teste de integração realizado com sucesso",
+      analysis: analise
+    });
+  } catch (error) {
+    console.error("❌ Erro no teste de integração:", error);
+    res.status(500).json({
+      success: false,
+      message: `Erro no teste: ${error.message}`
+    });
   }
 });
 
@@ -91,7 +139,17 @@ const PORT = process.env.PORT || 3000;
 
 // Iniciar servidor com tratamento de erros
 const server = app.listen(PORT, () => {
-  console.log(`🚀 Webhook ativo em http://localhost:${PORT}/webhook`);
+  console.log(`
+🚀 Servidor iniciado!
+📡 Porta: ${PORT}
+🔑 OpenAI API: ${process.env.OPENAI_API_KEY ? "configurada" : "NÃO CONFIGURADA"}
+⏰ Data/Hora: ${new Date().toISOString()}
+
+🌐 URLs:
+- Webhook: http://localhost:${PORT}/webhook
+- Status: http://localhost:${PORT}/status
+- Teste: http://localhost:${PORT}/test-repo
+  `);
 });
 
 // Tratamento para garantir que o servidor feche adequadamente

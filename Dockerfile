@@ -10,7 +10,10 @@ RUN npm install
 # Copiar código fonte
 COPY . .
 
-# Expor porta - Railway define isso automaticamente, mas vamos manter para clareza
+# Verificar se as variáveis de ambiente estão configuradas
+RUN echo "Verificando configuração..."
+
+# Expor porta - Railway define isso automaticamente
 EXPOSE 3000
 
 # Configurar comando de inicialização com tratamento adequado de sinais

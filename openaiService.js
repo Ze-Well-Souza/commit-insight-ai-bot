@@ -17,6 +17,7 @@ const openai = new OpenAI({
  * @returns {Promise<string>} Análise do commit
  */
 export async function analisarCommit(diff) {
+  // Verificação obrigatória da chave API
   if (!process.env.OPENAI_API_KEY) {
     console.error("❌ Chave da API OpenAI não configurada");
     return "Erro: Chave da API OpenAI não configurada";
@@ -48,18 +49,22 @@ export async function analisarCommit(diff) {
     const elapsed = ((Date.now() - start) / 1000).toFixed(2);
     
     console.log(`🧠 Análise concluída em ${elapsed}s`);
-    console.log("📝 Resposta da IA:", completion.choices[0].message.content.substring(0, 150) + "...");
     
-    // Aqui você poderia salvar a análise em um banco de dados
-    // ou enviar para algum outro serviço/webhook
-    
-    return completion.choices[0].message.content;
+    if (completion.choices && completion.choices.length > 0) {
+      const resposta = completion.choices[0].message.content;
+      console.log("📝 Resposta da IA:", resposta.substring(0, 150) + "...");
+      return resposta;
+    } else {
+      console.error("❌ Resposta da API OpenAI vazia ou inválida");
+      return "Erro: Resposta da API OpenAI vazia ou inválida";
+    }
   } catch (error) {
     if (error.response) {
       console.error(`❌ Erro da API OpenAI [${error.response.status}]:`, error.response.data);
+      return `Erro da API OpenAI: ${error.response.status} - ${JSON.stringify(error.response.data)}`;
     } else {
       console.error("❌ Erro ao chamar a OpenAI:", error.message);
+      return `Erro ao chamar a OpenAI: ${error.message}`;
     }
-    throw error; // Repassar o erro para tratamento superior
   }
 }

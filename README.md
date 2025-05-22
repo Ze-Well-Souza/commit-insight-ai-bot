@@ -3,76 +3,48 @@
 
 Bot de análise automática de commits usando GitHub API e OpenAI.
 
-## Funcionalidades
+## Configuração para Railway
 
-- Webhook para receber notificações de novos commits
-- Análise automática de commits usando OpenAI
-- Integração com GitHub Actions
+### Variáveis de Ambiente Obrigatórias
 
-## Configuração
+Configure estas variáveis no painel do Railway:
 
-### Variáveis de Ambiente
+- `OPENAI_API_KEY`: Sua chave API da OpenAI (obrigatória)
 
-Crie um arquivo `.env` com as seguintes variáveis:
+### Verificação de Status
 
-```
-PORT=3000
-OPENAI_API_KEY=sua_chave_api_openai
-```
+Após o deploy, acesse a URL:
+- `/status` - Para verificar o estado do serviço e configuração
+- `/test-repo` - Para testar a integração com o repositório techcare-connect-automator
 
-### Instalação
+## Integrações disponíveis para notificações
 
-```bash
-npm install
-npm start
-```
+Para receber notificações dos commits analisados, considere estas opções:
 
-### Docker
+### 1. Discord (recomendado)
+- Configure um webhook do Discord no seu servidor
+- Adicione a URL do webhook como variável de ambiente `DISCORD_WEBHOOK_URL`
 
-```bash
-docker build -t repo-analyzer-bot .
-docker run -p 3000:3000 --env-file .env repo-analyzer-bot
-```
+### 2. Telegram
+- Crie um bot no BotFather e obtenha o token
+- Configure `TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID`
 
-## Integração com GitHub
+### 3. Notify.run (simples, sem custos)
+- Crie um canal em https://notify.run/
+- Use a URL do canal para receber notificações no navegador
 
-1. Configure um webhook no seu repositório GitHub:
-   - URL: `https://seu-dominio.com/webhook`
-   - Eventos: `push`
-
-2. Ou use GitHub Actions (recomendado):
-   
-```yaml
-name: Commit Analysis
-
-on:
-  push:
-    branches: [ main, master, develop ]
-
-jobs:
-  analyze:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Notify Analyzer Bot
-      uses: fjogeleit/http-request-action@v1
-      with:
-        url: 'https://seu-dominio.com/webhook'
-        method: 'POST'
-        data: |
-          {
-            "repository": "${{ github.repository }}",
-            "commits": "${{ toJSON(github.event.commits) }}"
-          }
-```
+### 4. Slack
+- Configure um App no Slack workspace
+- Adicione a Webhook URL como `SLACK_WEBHOOK_URL`
 
 ## Uso
 
 Quando um novo commit é enviado para o repositório, o webhook é acionado e a análise é realizada automaticamente.
 
-```
+## Solução de Problemas
 
-## Hospedagem
+Se a aplicação falhar no Railway:
+1. Verifique se a variável `OPENAI_API_KEY` está configurada corretamente
+2. Acesse os logs para identificar possíveis erros
+3. Teste localmente antes de fazer deploy
 
-Recomendado: Railway, Render ou Fly.io com as seguintes variáveis de ambiente configuradas:
-- `PORT`: 3000 (ou será usado o padrão da plataforma)
-- `OPENAI_API_KEY`: Sua chave API da OpenAI
