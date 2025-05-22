@@ -9,14 +9,15 @@ const app = express();
 app.use(bodyParser.json());
 
 app.post("/webhook", async (req, res) => {
-  // GitHub ping test
-  if (req.headers["x-github-event"] === "ping") {
-    console.log("🔔 Recebido evento de ping do GitHub");
+  const eventType = req.headers["x-github-event"];
+
+  if (eventType === "ping") {
+    console.log("🔔 Ping recebido do GitHub");
     return res.status(200).send("✅ Pong do webhook");
   }
 
   const commits = req.body.commits || [];
-  const repo = req.body.repository.full_name;
+  const repo = req.body.repository?.full_name || "Repositório desconhecido";
 
   for (const commit of commits) {
     const message = commit.message;
@@ -27,6 +28,7 @@ app.post("/webhook", async (req, res) => {
 
   res.status(200).send("✅ Commit processado com sucesso");
 });
+
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
