@@ -1,73 +1,78 @@
-# Welcome to your Lovable project
 
-## Project info
+# Repo Analyzer Bot
 
-**URL**: https://lovable.dev/projects/c549cbfd-b511-4778-b5f3-6c7456f93e08
+Bot de análise automática de commits usando GitHub API e OpenAI.
 
-## How can I edit this code?
+## Funcionalidades
 
-There are several ways of editing your application.
+- Webhook para receber notificações de novos commits
+- Análise automática de commits usando OpenAI
+- Integração com GitHub Actions
 
-**Use Lovable**
+## Configuração
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/c549cbfd-b511-4778-b5f3-6c7456f93e08) and start prompting.
+### Variáveis de Ambiente
 
-Changes made via Lovable will be committed automatically to this repo.
+Crie um arquivo `.env` com as seguintes variáveis:
 
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```
+PORT=3000
+OPENAI_API_KEY=sua_chave_api_openai
 ```
 
-**Edit a file directly in GitHub**
+### Instalação
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```bash
+npm install
+npm start
+```
 
-**Use GitHub Codespaces**
+### Docker
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+```bash
+docker build -t repo-analyzer-bot .
+docker run -p 3000:3000 --env-file .env repo-analyzer-bot
+```
 
-## What technologies are used for this project?
+## Integração com GitHub
 
-This project is built with:
+1. Configure um webhook no seu repositório GitHub:
+   - URL: `https://seu-dominio.com/webhook`
+   - Eventos: `push`
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+2. Ou use GitHub Actions (recomendado):
+   
+```yaml
+name: Commit Analysis
 
-## How can I deploy this project?
+on:
+  push:
+    branches: [ main, master, develop ]
 
-Simply open [Lovable](https://lovable.dev/projects/c549cbfd-b511-4778-b5f3-6c7456f93e08) and click on Share -> Publish.
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Notify Analyzer Bot
+      uses: fjogeleit/http-request-action@v1
+      with:
+        url: 'https://seu-dominio.com/webhook'
+        method: 'POST'
+        data: |
+          {
+            "repository": "${{ github.repository }}",
+            "commits": "${{ toJSON(github.event.commits) }}"
+          }
+```
 
-## Can I connect a custom domain to my Lovable project?
+## Uso
 
-Yes, you can!
+Quando um novo commit é enviado para o repositório, o webhook é acionado e a análise é realizada automaticamente.
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+```
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+## Hospedagem
+
+Recomendado: Railway, Render ou Fly.io com as seguintes variáveis de ambiente configuradas:
+- `PORT`: 3000 (ou será usado o padrão da plataforma)
+- `OPENAI_API_KEY`: Sua chave API da OpenAI
