@@ -1,7 +1,9 @@
-require("dotenv").config();
-const express = require("express");
-const bodyParser = require("body-parser");
-const { analisarCommit } = require("./openaiService");
+import express from "express";
+import bodyParser from "body-parser";
+import dotenv from "dotenv";
+import { analisarCommit } from "./openaiService.js";
+
+dotenv.config();
 
 const app = express();
 app.use(bodyParser.json());
@@ -13,7 +15,6 @@ app.post("/webhook", async (req, res) => {
   for (const commit of commits) {
     const message = commit.message;
     const diff = `Repositório: ${repo}\nAutor: ${commit.author.name}\nMensagem: ${message}\nURL: ${commit.url}`;
-
     console.log(`📦 Commit recebido: ${message}`);
     await analisarCommit(diff);
   }
