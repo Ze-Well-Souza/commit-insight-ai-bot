@@ -14,17 +14,19 @@ app.use(bodyParser.json({
   }
 }));
 
-// Rota de verificação de saúde
+// Rota de verificação de saúde - crucial para Railway
 app.get("/", (req, res) => {
   res.status(200).send("✅ Webhook ativo e funcionando");
 });
 
-// Status do servidor
+// Status do servidor com mais detalhes
 app.get("/status", (req, res) => {
   res.status(200).json({
     status: "online",
     timestamp: new Date().toISOString(),
-    version: "1.0.0"
+    version: "1.0.0",
+    environment: process.env.NODE_ENV || 'development',
+    apiKeyConfigured: !!process.env.OPENAI_API_KEY
   });
 });
 

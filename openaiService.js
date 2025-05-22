@@ -14,12 +14,12 @@ const openai = new OpenAI({
 /**
  * Analisa um commit usando a API da OpenAI
  * @param {string} diff - Informações do commit para análise
- * @returns {Promise<void>}
+ * @returns {Promise<string>} Análise do commit
  */
 export async function analisarCommit(diff) {
   if (!process.env.OPENAI_API_KEY) {
     console.error("❌ Chave da API OpenAI não configurada");
-    return;
+    return "Erro: Chave da API OpenAI não configurada";
   }
 
   try {

@@ -10,8 +10,8 @@ RUN npm install
 # Copiar código fonte
 COPY . .
 
-# Expor porta
+# Expor porta - Railway define isso automaticamente, mas vamos manter para clareza
 EXPOSE 3000
 
-# Iniciar aplicação com tratamento adequado de sinais
+# Configurar comando de inicialização com tratamento adequado de sinais
 CMD ["node", "index.js"]
