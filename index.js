@@ -1,8 +1,10 @@
 import express from "express";
 import bodyParser from "body-parser";
 import dotenv from "dotenv";
+import cors from "cors";
 import { analisarCommit } from "./openaiService.js";
 import { enviarNotificacaoDiscord } from "./discordService.js";
+import { initializeDatabase, saveAnalysis, getAllAnalyses, getAnalysisById } from "./database.js";
 
 // Carregar variáveis de ambiente
 dotenv.config();
@@ -16,12 +18,22 @@ if (!process.env.DISCORD_WEBHOOK_URL) {
 }
 
 const app = express();
+
+// Middlewares
+app.use(cors({
+  origin: process.env.FRONTEND_URL || '*',
+  credentials: true
+}));
+
 app.use(bodyParser.json({
-  limit: '10mb', // Aumentar limite para commits grandes
+  limit: '10mb',
   verify: (req, res, buf) => {
     req.rawBody = buf;
   }
 }));
+
+// Inicializar banco de dados
+await initializeDatabase();
 
 // Rota de verificação de saúde - crucial para Railway
 app.get("/", (req, res) => {
@@ -41,13 +53,152 @@ app.get("/status", (req, res) => {
     envVars: {
       PORT: process.env.PORT || '3000',
       NODE_ENV: process.env.NODE_ENV || 'não definido',
-      // Não mostrar a chave completa, apenas se existe
       OPENAI_API_KEY: process.env.OPENAI_API_KEY ? "***configurada***" : "não configurada",
       DISCORD_WEBHOOK_URL: process.env.DISCORD_WEBHOOK_URL ? "***configurada***" : "não configurada"
     }
   });
 });
 
+// NOVOS ENDPOINTS REST PARA FRONTEND
+
+// GET /api/analyses - Buscar todas as análises
+app.get("/api/analyses", async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 50;
+    const analyses = await getAllAnalyses(limit);
+    res.status(200).json({
+      success: true,
+      data: analyses,
+      count: analyses.length
+    });
+  } catch (error) {
+    console.error("❌ Erro ao buscar análises:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erro interno ao buscar análises",
+      error: error.message
+    });
+  }
+});
+
+// GET /api/analyses/:id - Buscar análise específica
+app.get("/api/analyses/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const analysis = await getAnalysisById(id);
+    
+    if (!analysis) {
+      return res.status(404).json({
+        success: false,
+        message: "Análise não encontrada"
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: analysis
+    });
+  } catch (error) {
+    console.error("❌ Erro ao buscar análise:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erro interno ao buscar análise",
+      error: error.message
+    });
+  }
+});
+
+// POST /api/analyze - Disparar nova análise
+app.post("/api/analyze", async (req, res) => {
+  try {
+    const { repositoryUrl, commitSha, commitMessage, author, diff } = req.body;
+
+    // Validações básicas
+    if (!repositoryUrl || !commitMessage || !author) {
+      return res.status(400).json({
+        success: false,
+        message: "Campos obrigatórios: repositoryUrl, commitMessage, author"
+      });
+    }
+
+    // Resposta imediata para o frontend
+    res.status(202).json({
+      success: true,
+      message: "Análise iniciada com sucesso",
+      status: "processing"
+    });
+
+    // Processar análise de forma assíncrona
+    (async () => {
+      try {
+        console.log(`🔍 Iniciando análise via API para: ${repositoryUrl}`);
+        
+        const analysisData = {
+          repo: repositoryUrl,
+          author: author,
+          message: commitMessage,
+          diff: diff || "Análise disparada via API - diff não fornecido"
+        };
+
+        const analise = await analisarCommit(analysisData);
+        
+        // Salvar no banco de dados
+        await saveAnalysis({
+          commit_sha: commitSha || `api-${Date.now()}`,
+          commit_message: commitMessage,
+          author: author,
+          repository: repositoryUrl,
+          timestamp: new Date().toISOString(),
+          analysis_content: analise,
+          status: 'Completed',
+          commit_url: `${repositoryUrl}/commit/${commitSha || 'unknown'}`
+        });
+
+        console.log(`✅ Análise via API concluída e salva para: ${repositoryUrl}`);
+
+        // Enviar notificação Discord (opcional)
+        if (process.env.DISCORD_WEBHOOK_URL) {
+          await enviarNotificacaoDiscord({
+            repo: repositoryUrl,
+            author: author,
+            message: commitMessage,
+            url: `${repositoryUrl}/commit/${commitSha || 'unknown'}`,
+            analise: analise,
+          });
+        }
+
+      } catch (error) {
+        console.error(`❌ Erro na análise via API: ${error.message}`);
+        
+        // Salvar erro no banco
+        try {
+          await saveAnalysis({
+            commit_sha: commitSha || `api-error-${Date.now()}`,
+            commit_message: commitMessage,
+            author: author,
+            repository: repositoryUrl,
+            timestamp: new Date().toISOString(),
+            analysis_content: `Erro na análise: ${error.message}`,
+            status: 'Failed',
+            commit_url: `${repositoryUrl}/commit/${commitSha || 'unknown'}`
+          });
+        } catch (saveError) {
+          console.error(`❌ Erro ao salvar análise com falha: ${saveError.message}`);
+        }
+      }
+    })();
+
+  } catch (error) {
+    console.error("❌ Erro ao processar requisição de análise:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erro interno do servidor",
+      error: error.message
+    });
+  }
+});
+
+// Webhook do GitHub (atualizado para salvar no banco)
 app.post("/webhook", async (req, res) => {
   try {
     const eventType = req.headers["x-github-event"];
@@ -58,7 +209,6 @@ app.post("/webhook", async (req, res) => {
       return res.status(200).send("✅ Pong do webhook");
     }
 
-    // A partir de agora, esperamos um payload customizado do GitHub Actions
     const { repository, author, commit_message, commit_sha, diff, commit_url } = req.body;
 
     if (!diff) {
@@ -70,7 +220,7 @@ app.post("/webhook", async (req, res) => {
     
     res.status(202).send("✅ Webhook recebido, análise em andamento.");
 
-    // Processa a análise de forma assíncrona
+    // Processar análise de forma assíncrona
     (async () => {
       try {
         console.log(`🔍 Analisando commit: ${commit_message.substring(0, 50)}...`);
@@ -82,7 +232,19 @@ app.post("/webhook", async (req, res) => {
           diff: diff,
         });
 
-        console.log(`✅ Análise do commit ${commit_sha.substring(0,7)} concluída.`);
+        // Salvar no banco de dados
+        await saveAnalysis({
+          commit_sha: commit_sha,
+          commit_message: commit_message,
+          author: author,
+          repository: repository,
+          timestamp: new Date().toISOString(),
+          analysis_content: analise,
+          status: 'Completed',
+          commit_url: commit_url
+        });
+
+        console.log(`✅ Análise do commit ${commit_sha.substring(0,7)} concluída e salva.`);
 
         await enviarNotificacaoDiscord({
           repo: repository,
@@ -94,12 +256,27 @@ app.post("/webhook", async (req, res) => {
 
       } catch (error) {
         console.error(`❌ Erro durante a análise assíncrona do commit: ${error.message}`);
+        
+        // Salvar erro no banco
+        try {
+          await saveAnalysis({
+            commit_sha: commit_sha,
+            commit_message: commit_message,
+            author: author,
+            repository: repository,
+            timestamp: new Date().toISOString(),
+            analysis_content: `Erro na análise: ${error.message}`,
+            status: 'Failed',
+            commit_url: commit_url
+          });
+        } catch (saveError) {
+          console.error(`❌ Erro ao salvar análise com falha: ${saveError.message}`);
+        }
       }
     })();
 
   } catch (error) {
     console.error("❌ Erro ao processar webhook:", error);
-    // A resposta já foi enviada, então apenas logamos o erro.
   }
 });
 
@@ -153,11 +330,14 @@ const server = app.listen(PORT, () => {
 📡 Porta: ${PORT}
 🔑 OpenAI API: ${process.env.OPENAI_API_KEY ? "configurada" : "NÃO CONFIGURADA"}
 🔔 Discord Webhook: ${process.env.DISCORD_WEBHOOK_URL ? "configurado" : "NÃO CONFIGURADO"}
+🗄️ Banco de dados: SQLite inicializado
 ⏰ Data/Hora: ${new Date().toISOString()}
 
 🌐 URLs:
 - Status: http://localhost:${PORT}/
 - Webhook: http://localhost:${PORT}/webhook
+- API Análises: http://localhost:${PORT}/api/analyses
+- Disparar Análise: http://localhost:${PORT}/api/analyze
 - Teste: http://localhost:${PORT}/test-repo
   `);
 });
@@ -182,10 +362,8 @@ process.on("SIGINT", () => {
 // Capturar exceções não tratadas
 process.on("uncaughtException", (error) => {
   console.error("❌ Exceção não tratada:", error);
-  // Não derrubar o servidor, apenas registrar o erro
 });
 
 process.on("unhandledRejection", (reason, promise) => {
   console.error("❌ Promessa rejeitada não tratada:", reason);
-  // Não derrubar o servidor, apenas registrar o erro
 });
