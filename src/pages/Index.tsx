@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ConfigPanel from '../components/ConfigPanel';
@@ -91,7 +90,7 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="runner">
-            <AnalysisRunner config={config} onAnalysisComplete={handleAnalysisComplete} />
+            <AnalysisRunner config={config} analyses={analyses} onAnalysisComplete={handleAnalysisComplete} />
           </TabsContent>
 
           <TabsContent value="results">

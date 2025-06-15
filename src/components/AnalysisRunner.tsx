@@ -4,14 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Play } from 'lucide-react';
 import { ConfigData, Analysis } from '../types';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 interface AnalysisRunnerProps {
   config: ConfigData;
+  analyses: Analysis[];
   onAnalysisComplete: (newAnalyses: Analysis[]) => void;
 }
 
-const AnalysisRunner: React.FC<AnalysisRunnerProps> = ({ config, onAnalysisComplete }) => {
+const AnalysisRunner: React.FC<AnalysisRunnerProps> = ({ config, analyses, onAnalysisComplete }) => {
   const [isLoading, setIsLoading] = React.useState(false);
   const { toast } = useToast();
 
@@ -31,7 +32,7 @@ const AnalysisRunner: React.FC<AnalysisRunnerProps> = ({ config, onAnalysisCompl
       status: 'Completed',
     };
 
-    onAnalysisComplete((prev) => [newAnalysis, ...prev]);
+    onAnalysisComplete([newAnalysis, ...analyses]);
     setIsLoading(false);
     toast({
       title: "Análise Concluída!",
@@ -46,7 +47,7 @@ const AnalysisRunner: React.FC<AnalysisRunnerProps> = ({ config, onAnalysisCompl
         <CardDescription>
           Clique no botão abaixo para simular uma análise do seu repositório.
         </CardDescription>
-      </Header>
+      </CardHeader>
       <CardContent>
         <Button onClick={handleRunAnalysis} disabled={isLoading || !config.repositoryUrl}>
           <Play className="mr-2 h-4 w-4" />
