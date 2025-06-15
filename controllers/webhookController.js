@@ -20,25 +20,36 @@ export const githubWebhookHandler = async (req, res) => {
       console.error("❌ Campo 'repository' é obrigatório.");
       return res.status(400).json({ error: "Campo 'repository' é obrigatório." });
     }
-
     if (!commit_message) {
       console.error("❌ Campo 'commit_message' é obrigatório.");
       return res.status(400).json({ error: "Campo 'commit_message' é obrigatório." });
     }
-
     if (!commit_sha) {
       console.error("❌ Campo 'commit_sha' é obrigatório.");
       return res.status(400).json({ error: "Campo 'commit_sha' é obrigatório." });
     }
-
     if (!diff) {
       console.error("❌ O 'diff' do commit não foi encontrado no corpo da requisição.");
       return res.status(400).json({ error: "O 'diff' do commit é obrigatório." });
     }
-    
+    // Limitar tamanho dos campos.
+    if (diff.length > 20000) {
+      return res.status(400).json({ error: "O campo 'diff' excede limite de 20.000 caracteres." });
+    }
+    if (commit_message.length > 500) {
+      return res.status(400).json({ error: "O campo 'commit_message' excede 500 caracteres." });
+    }
+    if (repository.length > 250) {
+      return res.status(400).json({ error: "O campo 'repository' excede 250 caracteres." });
+    }
+    // author pode ser string ou objeto (compat), segurar string "Desconhecido"
+    const safeAuthor = typeof author === "string" && author.length <= 120
+      ? author
+      : (typeof author === "object" && author?.name ? author.name : "Desconhecido");
+
     console.log(`📦 Recebido commit de ${repository}`);
-    
-    res.status(202).json({ 
+
+    res.status(202).json({
       message: "Webhook recebido, análise em andamento.",
       commit_sha: commit_sha.substring(0, 7)
     });
@@ -47,10 +58,10 @@ export const githubWebhookHandler = async (req, res) => {
     (async () => {
       try {
         console.log(`🔍 Analisando commit: ${commit_message.substring(0, 50)}...`);
-        
+
         const analise = await analisarCommit({
           repo: repository,
-          author: author || "Desconhecido",
+          author: safeAuthor,
           message: commit_message,
           diff: diff,
         });
@@ -58,7 +69,7 @@ export const githubWebhookHandler = async (req, res) => {
         await saveAnalysis({
           commit_sha: commit_sha,
           commit_message: commit_message,
-          author: author || "Desconhecido",
+          author: safeAuthor,
           repository: repository,
           timestamp: new Date().toISOString(),
           analysis_content: analise,
@@ -69,23 +80,22 @@ export const githubWebhookHandler = async (req, res) => {
         console.log(`✅ Análise do commit ${commit_sha.substring(0,7)} concluída e salva.`);
 
         if(process.env.DISCORD_WEBHOOK_URL) {
-            await enviarNotificacaoDiscord({
-                repo: repository,
-                author: author || "Desconhecido",
-                message: commit_message,
-                url: commit_url || `https://github.com/${repository}/commit/${commit_sha}`,
-                analise: analise,
-            });
+          await enviarNotificacaoDiscord({
+            repo: repository,
+            author: safeAuthor,
+            message: commit_message,
+            url: commit_url || `https://github.com/${repository}/commit/${commit_sha}`,
+            analise: analise,
+          });
         }
 
       } catch (error) {
         console.error(`❌ Erro durante a análise assíncrona do commit: ${error.message}`);
-        
         try {
           await saveAnalysis({
             commit_sha: commit_sha,
             commit_message: commit_message,
-            author: author || "Desconhecido",
+            author: safeAuthor,
             repository: repository,
             timestamp: new Date().toISOString(),
             analysis_content: `Erro na análise: ${error.message}`,
@@ -100,9 +110,9 @@ export const githubWebhookHandler = async (req, res) => {
 
   } catch (error) {
     console.error("❌ Erro ao processar webhook:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Erro interno do servidor",
-      message: error.message 
+      message: error.message
     });
   }
 };

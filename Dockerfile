@@ -13,11 +13,11 @@ RUN npm install
 # Copiar código fonte
 COPY . .
 
-# Criar diretório para banco de dados
-RUN mkdir -p /app/data
+# Criar diretório para banco de dados 
+RUN mkdir -p /app/data 
 
-# Verificar se as variáveis de ambiente estão configuradas
-RUN echo "Verificando configuração..."
+# Usar DATABASE_PATH por padrão na imagem Docker
+ENV DATABASE_PATH=/app/data/analyses.db
 
 # Expor porta - Railway define isso automaticamente  
 EXPOSE 3000
