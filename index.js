@@ -1,8 +1,8 @@
-
 import express from "express";
 import bodyParser from "body-parser";
 import dotenv from "dotenv";
 import { analisarCommit } from "./openaiService.js";
+import { enviarNotificacaoDiscord } from "./discordService.js";
 
 // Carregar variáveis de ambiente
 dotenv.config();
@@ -10,6 +10,9 @@ dotenv.config();
 // Verificar configuração crítica
 if (!process.env.OPENAI_API_KEY) {
   console.warn("⚠️ AVISO: OPENAI_API_KEY não está configurada! O serviço não funcionará corretamente.");
+}
+if (!process.env.DISCORD_WEBHOOK_URL) {
+  console.warn("⚠️ AVISO: DISCORD_WEBHOOK_URL não está configurada! As notificações não serão enviadas.");
 }
 
 const app = express();
@@ -23,7 +26,8 @@ app.use(bodyParser.json({
 // Rota de verificação de saúde - crucial para Railway
 app.get("/", (req, res) => {
   const apiStatus = process.env.OPENAI_API_KEY ? "configurada" : "NÃO configurada";
-  res.status(200).send(`✅ Webhook ativo e funcionando. OpenAI API: ${apiStatus}`);
+  const discordStatus = process.env.DISCORD_WEBHOOK_URL ? "configurada" : "NÃO configurada";
+  res.status(200).send(`✅ Webhook ativo. OpenAI API: ${apiStatus}. Discord Webhook: ${discordStatus}.`);
 });
 
 // Rota de diagnóstico detalhado
@@ -38,7 +42,8 @@ app.get("/status", (req, res) => {
       PORT: process.env.PORT || '3000',
       NODE_ENV: process.env.NODE_ENV || 'não definido',
       // Não mostrar a chave completa, apenas se existe
-      OPENAI_API_KEY: process.env.OPENAI_API_KEY ? "***configurada***" : "não configurada"
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY ? "***configurada***" : "não configurada",
+      DISCORD_WEBHOOK_URL: process.env.DISCORD_WEBHOOK_URL ? "***configurada***" : "não configurada"
     }
   });
 });
@@ -46,51 +51,55 @@ app.get("/status", (req, res) => {
 app.post("/webhook", async (req, res) => {
   try {
     const eventType = req.headers["x-github-event"];
-    console.log(`📌 Evento recebido: ${eventType || "Desconhecido"}`);
+    console.log(`📌 Evento recebido: ${eventType || "push"}`);
 
     if (eventType === "ping") {
       console.log("🔔 Ping recebido do GitHub");
       return res.status(200).send("✅ Pong do webhook");
     }
 
-    // Validar a requisição
-    if (!req.body) {
-      console.error("❌ Corpo da requisição vazio");
-      return res.status(400).send("Corpo da requisição vazio");
+    // A partir de agora, esperamos um payload customizado do GitHub Actions
+    const { repository, author, commit_message, commit_sha, diff, commit_url } = req.body;
+
+    if (!diff) {
+      console.error("❌ O 'diff' do commit não foi encontrado no corpo da requisição.");
+      return res.status(400).send("O 'diff' do commit é obrigatório.");
     }
-
-    const commits = req.body.commits || [];
-    const repo = req.body.repository?.full_name || "Repositório desconhecido";
     
-    console.log(`📦 Recebidos ${commits.length} commits do repositório: ${repo}`);
+    console.log(`📦 Recebido commit de ${repository}`);
     
-    // Responder imediatamente para evitar timeout no GitHub
-    res.status(202).send(`✅ Webhook recebido, processando ${commits.length} commits`);
+    res.status(202).send("✅ Webhook recebido, análise em andamento.");
 
-    // Processar os commits de forma assíncrona após responder
-    for (const commit of commits) {
-      const message = commit.message || "Sem mensagem";
-      const author = commit.author?.name || "Autor desconhecido";
-      const url = commit.url || "";
-      
-      console.log(`🔍 Analisando commit: ${message.substring(0, 50)}${message.length > 50 ? '...' : ''}`);
-      
+    // Processa a análise de forma assíncrona
+    (async () => {
       try {
-        const diff = `Repositório: ${repo}\nAutor: ${author}\nMensagem: ${message}\nURL: ${url}`;
-        const analise = await analisarCommit(diff);
-        console.log(`✅ Commit analisado com sucesso: ${commit.id?.substring(0, 7) || "ID desconhecido"}`);
-        console.log(`📝 Análise: ${analise.substring(0, 100)}...`);
+        console.log(`🔍 Analisando commit: ${commit_message.substring(0, 50)}...`);
         
-        // Aqui você poderia adicionar código para enviar notificações
-        // via SMS, WhatsApp, etc.
-        
+        const analise = await analisarCommit({
+          repo: repository,
+          author: author,
+          message: commit_message,
+          diff: diff,
+        });
+
+        console.log(`✅ Análise do commit ${commit_sha.substring(0,7)} concluída.`);
+
+        await enviarNotificacaoDiscord({
+          repo: repository,
+          author: author,
+          message: commit_message,
+          url: commit_url,
+          analise: analise,
+        });
+
       } catch (error) {
-        console.error(`❌ Erro ao analisar commit: ${error.message}`);
+        console.error(`❌ Erro durante a análise assíncrona do commit: ${error.message}`);
       }
-    }
+    })();
+
   } catch (error) {
     console.error("❌ Erro ao processar webhook:", error);
-    // Não retornar erro aqui, pois já enviamos a resposta acima
+    // A resposta já foi enviada, então apenas logamos o erro.
   }
 });
 
@@ -143,11 +152,12 @@ const server = app.listen(PORT, () => {
 🚀 Servidor iniciado!
 📡 Porta: ${PORT}
 🔑 OpenAI API: ${process.env.OPENAI_API_KEY ? "configurada" : "NÃO CONFIGURADA"}
+🔔 Discord Webhook: ${process.env.DISCORD_WEBHOOK_URL ? "configurado" : "NÃO CONFIGURADO"}
 ⏰ Data/Hora: ${new Date().toISOString()}
 
 🌐 URLs:
+- Status: http://localhost:${PORT}/
 - Webhook: http://localhost:${PORT}/webhook
-- Status: http://localhost:${PORT}/status
 - Teste: http://localhost:${PORT}/test-repo
   `);
 });

@@ -1,50 +1,46 @@
 
 # Repo Analyzer Bot
 
-Bot de análise automática de commits usando GitHub API e OpenAI.
+Um bot que utiliza a API da OpenAI para analisar automaticamente os commits do seu repositório e enviar um resumo para o Discord.
 
-## Configuração para Railway
+## Como Funciona
 
-### Variáveis de Ambiente Obrigatórias
+1.  Você faz um `push` para uma das branches configuradas (ex: `main`).
+2.  Uma **GitHub Action** é acionada no seu repositório.
+3.  A Action coleta as informações do commit, incluindo as **alterações no código (diff)**.
+4.  Essas informações são enviadas via webhook para esta aplicação.
+5.  A aplicação usa a **OpenAI** para gerar uma análise de code review.
+6.  O resultado é postado como uma notificação em um canal do **Discord**.
 
-Configure estas variáveis no painel do Railway:
+## Configuração (2 Passos)
 
-- `OPENAI_API_KEY`: Sua chave API da OpenAI (obrigatória)
+### Passo 1: Configurar Variáveis de Ambiente na Railway
 
-### Verificação de Status
+No painel do seu projeto na Railway, vá para a aba "Variables" e configure:
 
-Após o deploy, acesse a URL:
-- `/status` - Para verificar o estado do serviço e configuração
-- `/test-repo` - Para testar a integração com o repositório techcare-connect-automator
+-   `OPENAI_API_KEY`: Sua chave da API da OpenAI (obrigatória).
+-   `DISCORD_WEBHOOK_URL`: A URL do webhook do seu canal no Discord (obrigatória para notificações).
 
-## Integrações disponíveis para notificações
+> **Como obter uma URL de Webhook do Discord?**
+> 1. No seu servidor Discord, clique com o botão direito no canal de texto onde deseja receber as notificações.
+> 2. Vá em `Editar Canal` > `Integrações`.
+> 3. Clique em `Criar Webhook`.
+> 4. Dê um nome ao webhook (ex: "Analisador de Commits") e copie a `URL do Webhook`. Cole esse valor na variável de ambiente.
 
-Para receber notificações dos commits analisados, considere estas opções:
+### Passo 2: Configurar a GitHub Action no seu Repositório
 
-### 1. Discord (recomendado)
-- Configure um webhook do Discord no seu servidor
-- Adicione a URL do webhook como variável de ambiente `DISCORD_WEBHOOK_URL`
+No repositório que você deseja monitorar, faça o seguinte:
 
-### 2. Telegram
-- Crie um bot no BotFather e obtenha o token
-- Configure `TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID`
+1.  Vá em `Settings` > `Secrets and variables` > `Actions`.
+2.  Crie um novo "repository secret" com o nome `ANALYZER_WEBHOOK_URL`.
+3.  No valor do secret, cole a URL da sua aplicação na Railway, seguida de `/webhook` (ex: `https://seu-projeto.up.railway.app/webhook`).
+4.  Crie o arquivo `.github/workflows/repo-analyzer.yml` no seu repositório com o conteúdo do arquivo `public/webhook-example.yml` deste projeto.
 
-### 3. Notify.run (simples, sem custos)
-- Crie um canal em https://notify.run/
-- Use a URL do canal para receber notificações no navegador
-
-### 4. Slack
-- Configure um App no Slack workspace
-- Adicione a Webhook URL como `SLACK_WEBHOOK_URL`
-
-## Uso
-
-Quando um novo commit é enviado para o repositório, o webhook é acionado e a análise é realizada automaticamente.
+Pronto! Agora, a cada `push`, a análise será realizada e enviada para o Discord.
 
 ## Solução de Problemas
 
-Se a aplicação falhar no Railway:
-1. Verifique se a variável `OPENAI_API_KEY` está configurada corretamente
-2. Acesse os logs para identificar possíveis erros
-3. Teste localmente antes de fazer deploy
-
+Se nada acontecer após um push:
+1.  Verifique os logs da sua aplicação na Railway.
+2.  Verifique se as variáveis `OPENAI_API_KEY` e `DISCORD_WEBHOOK_URL` estão corretas.
+3.  No GitHub, vá na aba "Actions" do seu repositório, clique no workflow "Repo Analyzer Bot" e verifique se houve algum erro na execução.

@@ -1,14 +1,10 @@
 
-# GitHub Actions Workflow
 # Salve este arquivo como .github/workflows/repo-analyzer.yml no seu repositório
-
-name: Repository Analyzer Bot
+name: Repo Analyzer Bot
 
 on:
   push:
     branches: [ main, master, develop ]
-  pull_request:
-    branches: [ main, master ]
 
 jobs:
   analyze:
@@ -16,27 +12,35 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
+        # Busca o commit anterior para gerar o diff
         fetch-depth: 2
 
-    - name: Get commit info
-      id: commit
+    - name: Prepare Commit Data
+      id: commit_data
       run: |
-        echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
-        echo "message=$(git log -1 --pretty=%B)" >> $GITHUB_OUTPUT
-        echo "author=$(git log -1 --pretty=%an)" >> $GITHUB_OUTPUT
-        echo "diff=$(git diff HEAD~1 HEAD)" >> $GITHUB_OUTPUT
+        # Usamos jq para construir um JSON seguro, evitando problemas com caracteres especiais
+        COMMIT_MESSAGE=$(git log -1 --pretty=%B | jq -sR .)
+        COMMIT_DIFF=$(git diff HEAD~1 HEAD | jq -sR .)
+        
+        JSON_PAYLOAD=$(cat <<EOF
+        {
+          "repository": "${{ github.repository }}",
+          "commit_sha": "${{ github.sha }}",
+          "commit_url": "${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}",
+          "commit_message": $COMMIT_MESSAGE,
+          "author": "${{ github.actor }}",
+          "branch": "${{ github.ref_name }}",
+          "diff": $DIFF_PAYLOAD
+        }
+        EOF
+        )
+        echo "payload=$(echo $JSON_PAYLOAD | jq -c .)" >> $GITHUB_OUTPUT
 
-    - name: Send webhook to analyzer
-      run: |
-        curl -X POST "YOUR_WEBHOOK_URL_HERE" \
-          -H "Content-Type: application/json" \
-          -d '{
-            "repository": "${{ github.repository }}",
-            "commit_sha": "${{ steps.commit.outputs.sha }}",
-            "commit_message": "${{ steps.commit.outputs.message }}",
-            "author": "${{ steps.commit.outputs.author }}",
-            "branch": "${{ github.ref_name }}",
-            "diff": "${{ steps.commit.outputs.diff }}"
-          }'
+    - name: Send Webhook to Analyzer
+      uses: distributhor/workflow-webhook@v3
+      env:
+        webhook_url: ${{ secrets.ANALYZER_WEBHOOK_URL }} # Crie este secret no GitHub
+        webhook_secret: "" # Opcional, se configurado no backend
+        data: '${{ steps.commit_data.outputs.payload }}'
