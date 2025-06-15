@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,13 +5,12 @@ import { Play } from 'lucide-react';
 import { ConfigData } from '../types';
 import { useToast } from '@/hooks/use-toast';
 import axios from 'axios';
+import { API_URL } from '../config';
 
 interface AnalysisRunnerProps {
   config: ConfigData;
   onAnalysisStarted: () => void;
 }
-
-const API_URL = 'http://localhost:3000';
 
 const AnalysisRunner: React.FC<AnalysisRunnerProps> = ({ config, onAnalysisStarted }) => {
   const [isLoading, setIsLoading] = React.useState(false);
@@ -94,4 +92,3 @@ const AnalysisRunner: React.FC<AnalysisRunnerProps> = ({ config, onAnalysisStart
 };
 
 export default AnalysisRunner;
-

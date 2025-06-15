@@ -1,15 +1,16 @@
-
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ConfigPanel from '../components/ConfigPanel';
 import AnalysisRunner from '../components/AnalysisRunner';
 import AnalysisResults from '../components/AnalysisResults';
 import WebhookInfo from '../components/WebhookInfo';
+import ApiErrorCard from '../components/ApiErrorCard';
 import { ConfigData, Analysis } from '../types';
 import { GitBranch, Bot, BarChart3, Webhook } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import { Skeleton } from '@/components/ui/skeleton';
+import { API_URL } from '../config';
 
 // O ideal é que esta URL venha de uma variável de ambiente (.env)
 // Mas para este exemplo, vamos defini-la aqui.
@@ -21,11 +22,14 @@ const fetchAnalyses = async (): Promise<Analysis[]> => {
     if (data.success) {
       return data.data;
     }
+    // Lança um erro se a resposta da API indicar falha
     throw new Error(data.message || 'Falha ao buscar análises');
   } catch (error) {
-    console.error('Erro na busca de análises:', error);
-    // Retorna array vazio em caso de erro para não quebrar a UI
-    return [];
+    if (axios.isAxiosError(error) && !error.response) {
+      throw new Error('Erro de rede. O servidor parece estar offline.');
+    }
+    // Re-lança o erro para o react-query poder capturá-lo
+    throw error;
   }
 };
 
@@ -37,9 +41,10 @@ const Index = () => {
     analysisInterval: 30,
   });
 
-  const { data: analyses, isLoading, refetch } = useQuery<Analysis[]>({
+  const { data: analyses, isLoading, isError, error, refetch } = useQuery<Analysis[], Error>({
     queryKey: ['analyses'],
     queryFn: fetchAnalyses,
+    retry: false, // Não tentar novamente de forma automática
   });
 
   // Carregar apenas a configuração do localStorage
@@ -111,10 +116,12 @@ const Index = () => {
           <TabsContent value="results">
             {isLoading ? (
               <div className="space-y-4">
-                <Skeleton className="h-16 w-full" />
-                <Skeleton className="h-16 w-full" />
-                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-24 w-full" />
+                <Skeleton className="h-24 w-full" />
+                <Skeleton className="h-24 w-full" />
               </div>
+            ) : isError ? (
+              <ApiErrorCard error={error} refetch={refetch} />
             ) : (
               <AnalysisResults analyses={analyses || []} />
             )}

@@ -6,10 +6,12 @@ import { analisarCommit } from "./openaiService.js";
 import { enviarNotificacaoDiscord } from "./discordService.js";
 import { initializeDatabase, saveAnalysis, getAllAnalyses, getAnalysisById } from "./database.js";
 
-// Carregar variáveis de ambiente
+// Carregar variáveis de ambiente do arquivo .env (se existir)
 dotenv.config();
 
-// Verificar configuração crítica
+// --- Validação de Configuração Crítica ---
+// O servidor irá iniciar, mas funcionalidades chave serão desativadas se as variáveis não estiverem presentes.
+// Logs de aviso são emitidos para facilitar a depuração.
 if (!process.env.OPENAI_API_KEY) {
   console.warn("⚠️ AVISO: OPENAI_API_KEY não está configurada! O serviço não funcionará corretamente.");
 }
@@ -19,7 +21,9 @@ if (!process.env.DISCORD_WEBHOOK_URL) {
 
 const app = express();
 
-// Middlewares
+// --- Middlewares ---
+// CORS: Controla quais domínios podem acessar a API.
+// FRONTEND_URL: Deve ser a URL do seu painel React. Se não for definida, '*' permite qualquer domínio (menos seguro).
 app.use(cors({
   origin: process.env.FRONTEND_URL || '*',
   credentials: true
@@ -32,7 +36,7 @@ app.use(bodyParser.json({
   }
 }));
 
-// Inicializar banco de dados
+// Inicializar banco de dados SQLite
 await initializeDatabase();
 
 // Rota de verificação de saúde - crucial para Railway
