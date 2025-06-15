@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ConfigPanel from '../components/ConfigPanel';
@@ -11,10 +12,6 @@ import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import { Skeleton } from '@/components/ui/skeleton';
 import { API_URL } from '../config';
-
-// O ideal é que esta URL venha de uma variável de ambiente (.env)
-// Mas para este exemplo, vamos defini-la aqui.
-const API_URL = 'http://localhost:3000';
 
 const fetchAnalyses = async (): Promise<Analysis[]> => {
   try {
