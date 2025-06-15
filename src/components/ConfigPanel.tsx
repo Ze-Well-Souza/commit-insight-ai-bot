@@ -34,20 +34,22 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, onConfigUpdate }) => 
       <CardHeader>
         <CardTitle>Configurações da Análise</CardTitle>
         <CardDescription>
-          Insira suas chaves de API e a URL do repositório para começar.
+          Insira suas chaves de API e a URL do repositório para começar. <span className="block text-xs mt-2 text-blue-600">Dica: Salve o token do GitHub para análises privadas ou repositórios privados (opcional).</span>
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="repositoryUrl">URL do Repositório GitHub</Label>
+          <Label htmlFor="repositoryUrl">URL do Repositório GitHub
+            <span className="ml-1 text-xs text-muted-foreground" title="Formato recomendado: https://github.com/usuario/repo">(?)</span>
+          </Label>
           <Input id="repositoryUrl" name="repositoryUrl" value={localConfig.repositoryUrl} onChange={handleChange} placeholder="https://github.com/usuario/repo" />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="githubToken">Token do GitHub (Opcional)</Label>
+          <Label htmlFor="githubToken">Token do GitHub <span className="text-xs text-muted-foreground">(Opcional, apenas para repositórios privados)</span></Label>
           <Input id="githubToken" name="githubToken" type="password" value={localConfig.githubToken} onChange={handleChange} />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="openaiApiKey">Chave da API OpenAI (Opcional)</Label>
+          <Label htmlFor="openaiApiKey">Chave da API OpenAI <span className="text-xs text-muted-foreground">(Opcional)</span></Label>
           <Input id="openaiApiKey" name="openaiApiKey" type="password" value={localConfig.openaiApiKey} onChange={handleChange} />
         </div>
         <Button onClick={handleSave}>Salvar Configurações</Button>
@@ -57,3 +59,4 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ config, onConfigUpdate }) => 
 };
 
 export default ConfigPanel;
+

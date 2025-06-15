@@ -28,9 +28,11 @@ const WebhookInfo = () => {
       <CardContent className="space-y-4">
         <p className="text-sm">Siga os passos abaixo no repositório que você deseja monitorar:</p>
         <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
-          <li>Vá em `Settings` &gt; `Secrets and variables` &gt; `Actions`.</li>
-          <li>Clique em `New repository secret`.</li>
-          <li>Use o nome <Code className="text-xs">ANALYZER_WEBHOOK_URL</Code>.</li>
+          <li>Vá em <b>Settings</b> &gt; <b>Secrets and variables</b> &gt; <b>Actions</b>. <span title="Acesse as configurações do repositório para cadastrar a URL do webhook." className="text-xs ml-1 cursor-help text-blue-500">(?)</span></li>
+          <li>Clique em <b>New repository secret</b>.</li>
+          <li>Use o nome <Code className="text-xs">ANALYZER_WEBHOOK_URL</Code>.
+            <span className="ml-2 text-xs border px-1 rounded bg-muted" title="Esse secret contém a URL do seu backend onde o GitHub irá chamar a cada push.">(Saiba mais)</span>
+          </li>
           <li>No valor do secret, cole a seguinte URL:</li>
         </ol>
         <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
@@ -56,3 +58,4 @@ const WebhookInfo = () => {
 };
 
 export default WebhookInfo;
+

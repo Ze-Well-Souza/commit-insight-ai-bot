@@ -16,6 +16,7 @@ const API_URL = 'http://localhost:3000';
 
 const AnalysisRunner: React.FC<AnalysisRunnerProps> = ({ config, onAnalysisStarted }) => {
   const [isLoading, setIsLoading] = React.useState(false);
+  const [runError, setRunError] = React.useState<string | null>(null);
   const { toast } = useToast();
 
   const handleRunAnalysis = async () => {
@@ -29,6 +30,8 @@ const AnalysisRunner: React.FC<AnalysisRunnerProps> = ({ config, onAnalysisStart
     }
 
     setIsLoading(true);
+    setRunError(null);
+
     toast({
       title: "Iniciando análise...",
       description: "Sua requisição foi enviada para o backend.",
@@ -46,17 +49,17 @@ const AnalysisRunner: React.FC<AnalysisRunnerProps> = ({ config, onAnalysisStart
         description: "O resultado aparecerá em breve na aba 'Resultados'.",
       });
 
-      // Aguarda um tempo para a análise ser processada e atualiza a lista.
       setTimeout(() => {
         toast({ title: "Atualizando lista de resultados..." });
         onAnalysisStarted();
       }, 15000); // 15 segundos para dar tempo para a IA.
 
     } catch (error) {
-      const errorMessage = axios.isAxiosError(error) 
-        ? error.response?.data?.message 
+      const errorMessage = axios.isAxiosError(error)
+        ? error.response?.data?.message
         : (error as Error).message;
-        
+
+      setRunError(errorMessage || "Ocorreu um erro ao disparar a análise.");
       toast({
         variant: "destructive",
         title: "Erro ao iniciar análise",
@@ -80,9 +83,15 @@ const AnalysisRunner: React.FC<AnalysisRunnerProps> = ({ config, onAnalysisStart
           <Play className="mr-2 h-4 w-4" />
           {isLoading ? 'Analisando...' : 'Iniciar Análise'}
         </Button>
+        {runError && (
+          <div className="mt-4 text-sm text-destructive bg-destructive/10 border border-destructive rounded p-2">
+            {runError}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
 };
 
 export default AnalysisRunner;
+

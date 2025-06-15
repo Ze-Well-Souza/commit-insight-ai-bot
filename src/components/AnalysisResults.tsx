@@ -31,7 +31,7 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({ analyses }) => {
       <CardHeader>
         <CardTitle>Resultados da Análise</CardTitle>
         <CardDescription>
-          Aqui estão os resultados das análises de commit mais recentes.
+          Aqui estão os resultados das análises de commit mais recentes. <span className="text-xs text-muted-foreground block">Clique em cada item para expandir e ver o feedback detalhado da IA.</span>
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -44,11 +44,11 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({ analyses }) => {
                     <div className="flex items-center gap-2">
                       <p className="font-semibold truncate" title={analysis.commitMessage}>{analysis.commitMessage}</p>
                       {analysis.commitUrl && (
-                        <a 
-                          href={analysis.commitUrl} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          title="Ver commit no GitHub" 
+                        <a
+                          href={analysis.commitUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Ver commit no GitHub"
                           className="text-primary hover:underline shrink-0"
                           onClick={(e) => e.stopPropagation()}
                         >
@@ -57,14 +57,14 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({ analyses }) => {
                       )}
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                       {analysis.repository && <Badge variant="outline" className="font-normal">{analysis.repository.split('/').pop()}</Badge>}
-                       <span>por {analysis.author}</span>
-                       <span>•</span>
-                       <span>{formatDistanceToNow(new Date(analysis.timestamp), { addSuffix: true, locale: ptBR })}</span>
-                       <div className="flex items-center gap-1" title={analysis.commitSha}>
+                      {analysis.repository && <Badge variant="outline" className="font-normal">{analysis.repository.split('/').pop()}</Badge>}
+                      <span>por {analysis.author}</span>
+                      <span>•</span>
+                      <span>{formatDistanceToNow(new Date(analysis.timestamp), { addSuffix: true, locale: ptBR })}</span>
+                      <div className="flex items-center gap-1" title={analysis.commitSha}>
                         <GitCommit className="h-3 w-3" />
                         <span>{analysis.commitSha.substring(0, 7)}</span>
-                       </div>
+                      </div>
                     </div>
                   </div>
                   <Badge variant={analysis.status === 'Completed' ? 'default' : 'destructive'} className="ml-4">
@@ -73,7 +73,13 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({ analyses }) => {
                 </div>
               </AccordionTrigger>
               <AccordionContent className="prose prose-sm max-w-none dark:prose-invert">
-                <pre className="whitespace-pre-wrap font-sans bg-muted/50 p-4 rounded-md">{analysis.analysisContent}</pre>
+                {analysis.status === 'Failed' ? (
+                  <div className="text-destructive bg-destructive/10 border border-destructive rounded p-2">
+                    {analysis.analysisContent}
+                  </div>
+                ) : (
+                  <pre className="whitespace-pre-wrap font-sans bg-muted/50 p-4 rounded-md">{analysis.analysisContent}</pre>
+                )}
               </AccordionContent>
             </AccordionItem>
           ))}
@@ -84,3 +90,4 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({ analyses }) => {
 };
 
 export default AnalysisResults;
+
