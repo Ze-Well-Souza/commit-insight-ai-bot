@@ -14,4 +14,6 @@ export interface Analysis {
   timestamp: string;
   analysisContent: string;
   status: 'Completed' | 'In Progress' | 'Failed';
+  commitUrl?: string;
+  repository?: string;
 }

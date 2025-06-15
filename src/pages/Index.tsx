@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ConfigPanel from '../components/ConfigPanel';
@@ -6,6 +7,27 @@ import AnalysisResults from '../components/AnalysisResults';
 import WebhookInfo from '../components/WebhookInfo';
 import { ConfigData, Analysis } from '../types';
 import { GitBranch, Bot, BarChart3, Webhook } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
+import { Skeleton } from '@/components/ui/skeleton';
+
+// O ideal é que esta URL venha de uma variável de ambiente (.env)
+// Mas para este exemplo, vamos defini-la aqui.
+const API_URL = 'http://localhost:3000';
+
+const fetchAnalyses = async (): Promise<Analysis[]> => {
+  try {
+    const { data } = await axios.get(`${API_URL}/api/analyses`);
+    if (data.success) {
+      return data.data;
+    }
+    throw new Error(data.message || 'Falha ao buscar análises');
+  } catch (error) {
+    console.error('Erro na busca de análises:', error);
+    // Retorna array vazio em caso de erro para não quebrar a UI
+    return [];
+  }
+};
 
 const Index = () => {
   const [config, setConfig] = useState<ConfigData>({
@@ -15,33 +37,26 @@ const Index = () => {
     analysisInterval: 30,
   });
 
-  const [analyses, setAnalyses] = useState<Analysis[]>([]);
+  const { data: analyses, isLoading, refetch } = useQuery<Analysis[]>({
+    queryKey: ['analyses'],
+    queryFn: fetchAnalyses,
+  });
 
-  // Carregar dados salvos do localStorage
+  // Carregar apenas a configuração do localStorage
   useEffect(() => {
     try {
       const savedConfig = localStorage.getItem('repo-analyzer-config');
       if (savedConfig) {
         setConfig(JSON.parse(savedConfig));
       }
-
-      const savedAnalyses = localStorage.getItem('repo-analyzer-analyses');
-      if (savedAnalyses) {
-        setAnalyses(JSON.parse(savedAnalyses));
-      }
     } catch (error) {
-      console.error('Erro ao carregar dados do localStorage:', error);
+      console.error('Erro ao carregar configuração do localStorage:', error);
     }
   }, []);
 
   const handleConfigUpdate = (newConfig: ConfigData) => {
     setConfig(newConfig);
     localStorage.setItem('repo-analyzer-config', JSON.stringify(newConfig));
-  };
-
-  const handleAnalysisComplete = (newAnalyses: Analysis[]) => {
-    setAnalyses(newAnalyses);
-    localStorage.setItem('repo-analyzer-analyses', JSON.stringify(newAnalyses));
   };
 
   const isConfigured = !!config.repositoryUrl;
@@ -90,11 +105,19 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="runner">
-            <AnalysisRunner config={config} analyses={analyses} onAnalysisComplete={handleAnalysisComplete} />
+            <AnalysisRunner config={config} onAnalysisStarted={refetch} />
           </TabsContent>
 
           <TabsContent value="results">
-            <AnalysisResults analyses={analyses} />
+            {isLoading ? (
+              <div className="space-y-4">
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-16 w-full" />
+              </div>
+            ) : (
+              <AnalysisResults analyses={analyses || []} />
+            )}
           </TabsContent>
 
           <TabsContent value="webhook">

@@ -3,41 +3,68 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Play } from 'lucide-react';
-import { ConfigData, Analysis } from '../types';
+import { ConfigData } from '../types';
 import { useToast } from '@/hooks/use-toast';
+import axios from 'axios';
 
 interface AnalysisRunnerProps {
   config: ConfigData;
-  analyses: Analysis[];
-  onAnalysisComplete: (newAnalyses: Analysis[]) => void;
+  onAnalysisStarted: () => void;
 }
 
-const AnalysisRunner: React.FC<AnalysisRunnerProps> = ({ config, analyses, onAnalysisComplete }) => {
+const API_URL = 'http://localhost:3000';
+
+const AnalysisRunner: React.FC<AnalysisRunnerProps> = ({ config, onAnalysisStarted }) => {
   const [isLoading, setIsLoading] = React.useState(false);
   const { toast } = useToast();
 
   const handleRunAnalysis = async () => {
-    setIsLoading(true);
-    
-    // Simulação de chamada de API
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    const newAnalysis: Analysis = {
-      id: new Date().toISOString(),
-      commitSha: 'a1b2c3d',
-      commitMessage: 'feat: Implementa nova funcionalidade de teste',
-      author: 'Usuário de Teste',
-      timestamp: new Date().toISOString(),
-      analysisContent: 'Esta é uma análise de simulação. O código parece bom, mas poderia ter mais testes.',
-      status: 'Completed',
-    };
+    if (!config.repositoryUrl) {
+      toast({
+        variant: "destructive",
+        title: "Repositório não configurado",
+        description: "Por favor, configure a URL do repositório na aba 'Configuração'.",
+      });
+      return;
+    }
 
-    onAnalysisComplete([newAnalysis, ...analyses]);
-    setIsLoading(false);
+    setIsLoading(true);
     toast({
-      title: "Análise Concluída!",
-      description: "A análise de simulação foi adicionada aos resultados.",
+      title: "Iniciando análise...",
+      description: "Sua requisição foi enviada para o backend.",
     });
+
+    try {
+      await axios.post(`${API_URL}/api/analyze`, {
+        repositoryUrl: config.repositoryUrl,
+        commitMessage: `Análise manual de ${config.repositoryUrl}`,
+        author: "Painel Repo Analyzer",
+      });
+
+      toast({
+        title: "Análise em progresso!",
+        description: "O resultado aparecerá em breve na aba 'Resultados'.",
+      });
+
+      // Aguarda um tempo para a análise ser processada e atualiza a lista.
+      setTimeout(() => {
+        toast({ title: "Atualizando lista de resultados..." });
+        onAnalysisStarted();
+      }, 15000); // 15 segundos para dar tempo para a IA.
+
+    } catch (error) {
+      const errorMessage = axios.isAxiosError(error) 
+        ? error.response?.data?.message 
+        : (error as Error).message;
+        
+      toast({
+        variant: "destructive",
+        title: "Erro ao iniciar análise",
+        description: errorMessage || "Ocorreu um erro desconhecido.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

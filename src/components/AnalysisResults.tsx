@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Analysis } from '../types';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { ExternalLink, GitCommit } from 'lucide-react';
 
 interface AnalysisResultsProps {
   analyses: Analysis[];
@@ -39,19 +40,40 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({ analyses }) => {
             <AccordionItem value={analysis.id} key={analysis.id}>
               <AccordionTrigger>
                 <div className="flex items-center justify-between w-full pr-4">
-                  <div className="flex-1 text-left">
-                    <p className="font-semibold truncate">{analysis.commitMessage}</p>
-                    <p className="text-sm text-muted-foreground">
-                      por {analysis.author} • {formatDistanceToNow(new Date(analysis.timestamp), { addSuffix: true, locale: ptBR })}
-                    </p>
+                  <div className="flex-1 text-left space-y-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold truncate" title={analysis.commitMessage}>{analysis.commitMessage}</p>
+                      {analysis.commitUrl && (
+                        <a 
+                          href={analysis.commitUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          title="Ver commit no GitHub" 
+                          className="text-primary hover:underline shrink-0"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                       {analysis.repository && <Badge variant="outline" className="font-normal">{analysis.repository.split('/').pop()}</Badge>}
+                       <span>por {analysis.author}</span>
+                       <span>•</span>
+                       <span>{formatDistanceToNow(new Date(analysis.timestamp), { addSuffix: true, locale: ptBR })}</span>
+                       <div className="flex items-center gap-1" title={analysis.commitSha}>
+                        <GitCommit className="h-3 w-3" />
+                        <span>{analysis.commitSha.substring(0, 7)}</span>
+                       </div>
+                    </div>
                   </div>
                   <Badge variant={analysis.status === 'Completed' ? 'default' : 'destructive'} className="ml-4">
-                    {analysis.status}
+                    {analysis.status === 'Failed' ? 'Falhou' : 'Concluído'}
                   </Badge>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="prose prose-sm max-w-none dark:prose-invert">
-                <pre className="whitespace-pre-wrap font-sans">{analysis.analysisContent}</pre>
+                <pre className="whitespace-pre-wrap font-sans bg-muted/50 p-4 rounded-md">{analysis.analysisContent}</pre>
               </AccordionContent>
             </AccordionItem>
           ))}
